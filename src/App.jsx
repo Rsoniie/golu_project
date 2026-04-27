@@ -58,18 +58,18 @@ const games = [
   },
   {
     id: 5,
-    title: 'Love Meter',
-    icon: '💕',
-    short: 'Fill romance to 100%.',
-    quote: 'This bar was doomed to overflow anyway.',
+    title: 'Cupid Ball Rush',
+    icon: '💘',
+    short: 'Guide the heart ball through tricky lanes.',
+    quote: 'A little danger makes the romance glow louder.',
     win: "100% love? That's us every single day. 💯💕"
   },
   {
     id: 6,
-    title: 'Find Your Soulmate',
-    icon: '🐻',
-    short: 'Pick the one sending love letters.',
-    quote: 'In every crowd, I would still choose you.',
+    title: 'Love Snake',
+    icon: '🐍',
+    short: 'Collect hearts without crashing.',
+    quote: 'Even the hardest path still finds its way back to love.',
     win: 'You found me. In every universe. 🌌'
   }
 ];
@@ -83,6 +83,7 @@ function App() {
   const [gameResetKey, setGameResetKey] = useState(0);
   const [soundOn, setSoundOn] = useState(false);
   const [showSpinner, setShowSpinner] = useState(false);
+  const [showGiftIntro, setShowGiftIntro] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rewardWon, setRewardWon] = useState(false);
@@ -131,6 +132,9 @@ function App() {
         setRewardWon(true);
         setShowSpinner(true);
       }
+      if (parsed.showGiftIntro) {
+        setShowGiftIntro(true);
+      }
       if (typeof parsed.wheelRotation === 'number') {
         setWheelRotation(parsed.wheelRotation);
       }
@@ -142,9 +146,9 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify({ clearedGames, rewardWon, wheelRotation }),
+      JSON.stringify({ clearedGames, rewardWon, wheelRotation, showGiftIntro }),
     );
-  }, [clearedGames, rewardWon, wheelRotation]);
+  }, [clearedGames, rewardWon, wheelRotation, showGiftIntro]);
 
   const handleGameWin = (gameId) => {
     setClearedGames((current) => current.map((value, index) => (index === gameId - 1 ? true : value)));
@@ -191,13 +195,24 @@ function App() {
     setActiveGame(null);
     setGameResetKey(0);
     setShowSpinner(false);
+    setShowGiftIntro(false);
     setWheelRotation(0);
     setIsSpinning(false);
     setRewardWon(false);
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify({ clearedGames: fresh, rewardWon: false, wheelRotation: 0 }),
+      JSON.stringify({ clearedGames: fresh, rewardWon: false, wheelRotation: 0, showGiftIntro: false }),
     );
+  };
+
+  const startGiftReveal = () => {
+    setShowGiftIntro(true);
+    launchGiftIntroCelebration();
+  };
+
+  const openSpinner = () => {
+    setShowGiftIntro(false);
+    setShowSpinner(true);
   };
 
   const activeGameConfig = activeGame !== null ? games[activeGame] : null;
@@ -366,14 +381,14 @@ function App() {
                 {allCleared ? (
                   <>
                     <p className="text-sm text-[#8c5566]">
-                      The universe has a gift for you... Spin when ready.
+                      You cleared every game of love. Birthday reward sequence unlocked.
                     </p>
                     <button
                       type="button"
-                      onClick={() => setShowSpinner(true)}
+                      onClick={startGiftReveal}
                       className="mt-4 rounded-full bg-[linear-gradient(135deg,#ff4d6d,#ffd166,#b76e79)] px-5 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(183,110,121,0.28)]"
                     >
-                      ✨ You completed every game of love! ✨
+                      ✨ Open Birthday Surprise ✨
                     </button>
                   </>
                 ) : (
@@ -382,6 +397,10 @@ function App() {
                   </p>
                 )}
               </div>
+
+              {showGiftIntro && !rewardWon && (
+                <GiftIntroCard onOpenSpinner={openSpinner} />
+              )}
 
               {(showSpinner || rewardWon) && (
                 <SpinnerReward
@@ -441,9 +460,9 @@ function GameRenderer({ game, onWin }) {
     return <CatchRosesGame onWin={onWin} />;
   }
   if (game.id === 5) {
-    return <LoveMeterGame onWin={onWin} />;
+    return <CupidBallRushGame onWin={onWin} />;
   }
-  return <SoulmateGame onWin={onWin} />;
+  return <LoveSnakeGame onWin={onWin} />;
 }
 
 function HeartMatchGame({ onWin }) {
@@ -520,48 +539,93 @@ function HeartMatchGame({ onWin }) {
 }
 
 function LoveLetterGame({ onWin }) {
-  const [hits, setHits] = useState(0);
-  const [position, setPosition] = useState({ x: 40, y: 28 });
-  const [toast, setToast] = useState('');
-
-  const moveLetter = () => {
-    setPosition({
-      x: 8 + Math.random() * 72,
-      y: 10 + Math.random() * 65
-    });
-  };
+  const [stage, setStage] = useState('collect');
+  const [lettersCollected, setLettersCollected] = useState(0);
+  const [toast, setToast] = useState('Collect 4 real love letters first.');
+  const [targets, setTargets] = useState(() => createLoveLetterTargets());
 
   useEffect(() => {
-    moveLetter();
-  }, []);
+    if (stage === 'collect' && lettersCollected >= 4) {
+      setStage('deliver');
+      setToast('Now tap the golden mailbox to deliver them. 💌');
+    }
+  }, [lettersCollected, stage]);
 
   useEffect(() => {
-    if (hits >= 6) {
-      setToast('Love letter delivered! 💌');
+    if (stage === 'delivered') {
       const timer = window.setTimeout(onWin, 900);
       return () => window.clearTimeout(timer);
     }
-  }, [hits, onWin]);
+  }, [stage, onWin]);
+
+  const moveTargets = () => {
+    setTargets((current) =>
+      current.map((target) => ({
+        ...target,
+        x: 10 + Math.random() * 75,
+        y: 10 + Math.random() * 68
+      })),
+    );
+  };
+
+  const tapTarget = (target) => {
+    if (stage !== 'collect') {
+      return;
+    }
+
+    if (target.real) {
+      setLettersCollected((current) => current + 1);
+      setToast('+1 Love Letter 💌');
+      setTargets((current) => current.filter((item) => item.id !== target.id));
+      window.setTimeout(() => {
+        setTargets((current) =>
+          current.length >= 4 ? current : createLoveLetterTargets(),
+        );
+      }, 180);
+      return;
+    }
+
+    setToast('Decoy spotted. That one was only flirting.');
+    moveTargets();
+  };
 
   return (
     <div>
       <div className="mb-3 flex items-center justify-between text-sm text-[#8c5566]">
-        <span>Taps: {hits}/6</span>
-        <span>{toast || '+1 Kiss 💋'}</span>
+        <span>Letters: {lettersCollected}/4</span>
+        <span>{toast}</span>
       </div>
       <div className="relative min-h-[260px] overflow-hidden rounded-[1.6rem] bg-white/30">
-        <motion.button
-          animate={{ left: `${position.x}%`, top: `${position.y}%` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 16 }}
-          onClick={() => {
-            setHits((current) => current + 1);
-            setToast('+1 Kiss 💋');
-            moveLetter();
-          }}
-          className="absolute flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff4d6d,#ffd166)] text-2xl shadow-[0_12px_28px_rgba(255,77,109,0.3)]"
-        >
-          ❤️💌
-        </motion.button>
+        {stage === 'collect' &&
+          targets.map((target) => (
+            <motion.button
+              key={target.id}
+              animate={{ left: `${target.x}%`, top: `${target.y}%` }}
+              transition={{ type: 'spring', stiffness: 120, damping: 16 }}
+              onClick={() => tapTarget(target)}
+              className={`absolute flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-2xl shadow-[0_12px_28px_rgba(255,77,109,0.22)] ${
+                target.real
+                  ? 'bg-[linear-gradient(135deg,#ff4d6d,#ffd166)]'
+                  : 'bg-white/80'
+              }`}
+            >
+              {target.real ? '💌' : '📩'}
+            </motion.button>
+          ))}
+
+        {stage !== 'collect' && (
+          <motion.button
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={() => {
+              setStage('delivered');
+              setToast('Love letter delivered! 💌');
+            }}
+            className="absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[1.8rem] bg-[linear-gradient(135deg,#ffd166,#ff4d6d)] text-5xl shadow-[0_18px_38px_rgba(255,77,109,0.26)]"
+          >
+            📮
+          </motion.button>
+        )}
       </div>
     </div>
   );
@@ -707,82 +771,251 @@ function CatchRosesGame({ onWin }) {
   );
 }
 
-function LoveMeterGame({ onWin }) {
-  const [percent, setPercent] = useState(0);
+function CupidBallRushGame({ onWin }) {
+  const [lane, setLane] = useState(1);
+  const [items, setItems] = useState(() => createRushItems());
+  const [score, setScore] = useState(0);
+  const [hits, setHits] = useState(0);
+  const [message, setMessage] = useState('Collect 10 hearts. Avoid 3 thorn hits.');
 
   useEffect(() => {
-    if (percent >= 100) {
+    if (score >= 10) {
+      setMessage("100% love? That's us every single day. 💯💕");
       const timer = window.setTimeout(onWin, 900);
       return () => window.clearTimeout(timer);
     }
-  }, [percent, onWin]);
+  }, [score, onWin]);
+
+  useEffect(() => {
+    if (hits >= 3) {
+      setScore(0);
+      setHits(0);
+      setItems(createRushItems());
+      setMessage('Too many thorn bumps. The lane resets, princess.');
+    }
+  }, [hits]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setItems((current) =>
+        current.map((item) => {
+          const nextY = item.y + item.speed;
+          if (nextY > 86) {
+            const collision = item.lane === lane;
+            if (collision) {
+              if (item.kind === 'heart') {
+                setScore((value) => value + 1);
+                setMessage('Heart collected. Keep rolling.');
+              } else {
+                setHits((value) => value + 1);
+                setMessage('Ouch. Thorn hit.');
+              }
+            }
+            return respawnRushItem(item.id);
+          }
+          return { ...item, y: nextY };
+        }),
+      );
+    }, 90);
+
+    return () => window.clearInterval(timer);
+  }, [lane]);
 
   return (
     <div>
-      <div className="rounded-[1.6rem] bg-white/35 p-4">
-        <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-[radial-gradient(circle,#ff4d6d_0%,#ffb7c5_70%,#ffffff_100%)] shadow-[0_18px_40px_rgba(255,77,109,0.2)]">
-          <div className="text-center text-white">
-            <p className="text-4xl">💖</p>
-            <p className="mt-2 text-2xl font-bold">{percent}%</p>
-          </div>
-        </div>
-        <p className="mt-4 text-center text-sm text-[#8c5566]">
-          Tap the kiss button 10 times to fill the meter.
-        </p>
+      <div className="mb-3 flex items-center justify-between text-sm text-[#8c5566]">
+        <span>Hearts: {score}/8</span>
+        <span>Hits: {hits}/3</span>
+      </div>
+      <p className="mb-3 text-sm text-[#8c5566]">{message}</p>
+
+      <div className="relative min-h-[290px] overflow-hidden rounded-[1.6rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.35),rgba(255,183,197,0.25))]">
+        <div className="absolute inset-y-0 left-1/3 w-px bg-[#b76e79]/25" />
+        <div className="absolute inset-y-0 left-2/3 w-px bg-[#b76e79]/25" />
+        {items.map((item) => (
+          <motion.div
+            key={item.id}
+            animate={{ top: `${item.y}%`, left: `${item.lane * 33.33 + 16.66}%` }}
+            transition={{ duration: 0.09, ease: 'linear' }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-3xl"
+          >
+            {item.kind === 'heart' ? '💖' : '🌵'}
+          </motion.div>
+        ))}
+        <motion.div
+          animate={{ left: `${lane * 33.33 + 16.66}%` }}
+          transition={{ type: 'spring', stiffness: 180, damping: 16 }}
+          className="absolute bottom-5 -translate-x-1/2 text-4xl"
+        >
+          💘
+        </motion.div>
       </div>
 
-      <button
-        type="button"
-        disabled={percent >= 100}
-        onClick={() => setPercent((current) => Math.min(100, current + 10))}
-        className="mt-4 w-full rounded-full bg-[linear-gradient(135deg,#ff4d6d,#ffd166,#ffb7c5)] px-5 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(255,77,109,0.25)] disabled:opacity-60"
-      >
-        Kiss 💋
-      </button>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {['Left', 'Center', 'Right'].map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setLane(index)}
+            className={`rounded-full px-3 py-3 text-sm font-semibold ${
+              lane === index
+                ? 'bg-[linear-gradient(135deg,#ff4d6d,#ffd166)] text-white'
+                : 'bg-white/40 text-[#8e4b60]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
-function SoulmateGame({ onWin }) {
-  const options = [
-    { id: 1, face: '🐻', extra: '☁️', correct: false },
-    { id: 2, face: '🐰', extra: '🌸', correct: false },
-    { id: 3, face: '🐻', extra: '💌', correct: true },
-    { id: 4, face: '🐱', extra: '🎀', correct: false }
-  ];
+function LoveSnakeGame({ onWin }) {
+  const boardSize = 8;
+  const [snake, setSnake] = useState([
+    { x: 3, y: 4 },
+    { x: 2, y: 4 }
+  ]);
+  const [direction, setDirection] = useState({ x: 1, y: 0 });
+  const [nextDirection, setNextDirection] = useState({ x: 1, y: 0 });
+  const [food, setFood] = useState({ x: 5, y: 2 });
+  const [collected, setCollected] = useState(0);
+  const [message, setMessage] = useState('Collect 7 hearts on the 8x8 grid. Don’t hit the wall or yourself.');
 
-  const [message, setMessage] = useState('Which one is sending you love letters?');
-  const [wrongId, setWrongId] = useState(null);
-
-  const choose = (item) => {
-    if (item.correct) {
-      setMessage('You found your soulmate! 🐻❤️');
-      const timer = window.setTimeout(onWin, 900);
+  useEffect(() => {
+    if (collected >= 7) {
+      setMessage('You found me. In every universe. 🌌');
+      const timer = window.setTimeout(onWin, 1000);
       return () => window.clearTimeout(timer);
     }
-    setWrongId(item.id);
-    setMessage('Not that one. Retry this game and trust the bear with the letter.');
-    window.setTimeout(() => setWrongId(null), 450);
+  }, [collected, onWin]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSnake((current) => {
+        const activeDirection = nextDirection;
+        setDirection(activeDirection);
+        const head = current[0];
+        const newHead = { x: head.x + activeDirection.x, y: head.y + activeDirection.y };
+
+        const hitWall =
+          newHead.x < 0 || newHead.x >= boardSize || newHead.y < 0 || newHead.y >= boardSize;
+        const hitSelf = current.some((segment) => segment.x === newHead.x && segment.y === newHead.y);
+
+        if (hitWall || hitSelf) {
+          setMessage('Crash. Snake of love resets. Try again.');
+          setCollected(0);
+          setFood({ x: 5, y: 2 });
+          setNextDirection({ x: 1, y: 0 });
+          setDirection({ x: 1, y: 0 });
+          return [
+            { x: 3, y: 4 },
+            { x: 2, y: 4 }
+          ];
+        }
+
+        const nextSnake = [newHead, ...current];
+        if (newHead.x === food.x && newHead.y === food.y) {
+          setCollected((value) => value + 1);
+          setMessage('Heart collected. Keep slithering.');
+          setFood(generateFood(nextSnake, boardSize));
+          return nextSnake;
+        }
+
+        nextSnake.pop();
+        return nextSnake;
+      });
+    }, 260);
+
+    return () => window.clearInterval(timer);
+  }, [food, nextDirection]);
+
+  const setMove = (move) => {
+    if (move.x === -direction.x && move.y === -direction.y) {
+      return;
+    }
+    setNextDirection(move);
   };
 
   return (
     <div>
+      <div className="mb-3 flex items-center justify-between text-sm text-[#8c5566]">
+        <span>Hearts: {collected}/7</span>
+        <span>Grid: 8x8</span>
+      </div>
       <p className="mb-3 text-sm text-[#8c5566]">{message}</p>
-      <div className="grid grid-cols-2 gap-3">
-        {options.map((item) => (
-          <motion.button
-            key={item.id}
-            whileTap={{ scale: 0.97 }}
-            animate={wrongId === item.id ? { x: [-6, 6, -4, 4, 0] } : { x: 0 }}
-            onClick={() => choose(item)}
-            className="rounded-[1.5rem] bg-white/40 p-4 text-center shadow-sm"
-          >
-            <div className="text-5xl">{item.face}</div>
-            <div className="mt-2 text-2xl">{item.extra}</div>
-          </motion.button>
-        ))}
+
+      <div className="grid grid-cols-8 gap-1 rounded-[1.5rem] bg-white/30 p-3">
+        {Array.from({ length: boardSize * boardSize }, (_, index) => {
+          const x = index % boardSize;
+          const y = Math.floor(index / boardSize);
+          const isFood = food.x === x && food.y === y;
+          const snakeIndex = snake.findIndex((segment) => segment.x === x && segment.y === y);
+          const isHead = snakeIndex === 0;
+
+          return (
+            <div
+              key={`${x}-${y}`}
+              className={`flex aspect-square items-center justify-center rounded-[0.7rem] text-base ${
+                isHead
+                  ? 'bg-[linear-gradient(135deg,#ff4d6d,#ffd166)]'
+                  : snakeIndex > -1
+                    ? 'bg-[#b76e79]/85'
+                    : 'bg-white/45'
+              }`}
+            >
+              {isFood ? '💖' : isHead ? '🐍' : snakeIndex > -1 ? '•' : ''}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div />
+        <button type="button" onClick={() => setMove({ x: 0, y: -1 })} className="rounded-full bg-white/45 px-3 py-3 text-sm font-semibold text-[#8e4b60]">Up</button>
+        <div />
+        <button type="button" onClick={() => setMove({ x: -1, y: 0 })} className="rounded-full bg-white/45 px-3 py-3 text-sm font-semibold text-[#8e4b60]">Left</button>
+        <button type="button" onClick={() => setMove({ x: 0, y: 1 })} className="rounded-full bg-white/45 px-3 py-3 text-sm font-semibold text-[#8e4b60]">Down</button>
+        <button type="button" onClick={() => setMove({ x: 1, y: 0 })} className="rounded-full bg-white/45 px-3 py-3 text-sm font-semibold text-[#8e4b60]">Right</button>
       </div>
     </div>
+  );
+}
+
+function GiftIntroCard({ onOpenSpinner }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-panel rounded-[1.8rem] p-5 text-center"
+    >
+      <div className="flex justify-center gap-2 text-3xl">
+        <span>🍬</span>
+        <span>🎈</span>
+        <span>🍭</span>
+        <span>🎀</span>
+        <span>🎁</span>
+      </div>
+      <p className="mt-4 text-[10px] uppercase tracking-[0.32em] text-[#9a5c70]">Birthday Wish</p>
+      <h3 className="mt-2 text-2xl font-semibold text-[#7b2841]">
+        Happy Birthday, my love 💖
+      </h3>
+      <p className="mt-3 text-sm leading-7 text-[#8c5566]">
+        You beat every little game in this garden. So first comes the blast of candy,
+        balloons, and sugar chaos... and then comes my gift.
+      </p>
+      <p className="mt-3 text-sm leading-7 text-[#8c5566]">
+        The universe has something pretty waiting for you. Open the gift, then spin.
+      </p>
+      <button
+        type="button"
+        onClick={onOpenSpinner}
+        className="mt-5 rounded-full bg-[linear-gradient(135deg,#ff4d6d,#ffd166,#b76e79)] px-5 py-3 text-sm font-bold text-white shadow-[0_18px_40px_rgba(183,110,121,0.28)]"
+      >
+        Open My Gift 🎁
+      </button>
+    </motion.div>
   );
 }
 
@@ -904,6 +1137,16 @@ function launchRewardCelebration() {
   });
 }
 
+function launchGiftIntroCelebration() {
+  confetti({
+    particleCount: 180,
+    spread: 110,
+    origin: { y: 0.6 },
+    startVelocity: 16,
+    colors: ['#ffb7c5', '#ff4d6d', '#ffd166', '#b76e79', '#fadadd']
+  });
+}
+
 function shuffle(list) {
   const next = [...list];
   for (let i = next.length - 1; i > 0; i -= 1) {
@@ -955,6 +1198,43 @@ function respawnRose(id) {
     y: -10 - Math.random() * 20,
     speed: 3 + Math.random() * 1.4
   };
+}
+
+function createLoveLetterTargets() {
+  return Array.from({ length: 5 }, (_, index) => ({
+    id: `letter-${index}-${Math.random().toString(36).slice(2, 7)}`,
+    real: index < 4,
+    x: 12 + Math.random() * 72,
+    y: 12 + Math.random() * 64
+  }));
+}
+
+function createRushItems() {
+  return Array.from({ length: 4 }, (_, index) => respawnRushItem(`rush-${index}`, -index * 24));
+}
+
+function respawnRushItem(id, forcedY) {
+  return {
+    id,
+    lane: Math.floor(Math.random() * 3),
+    y: forcedY ?? (-20 - Math.random() * 40),
+    speed: 3.2 + Math.random() * 1.2,
+    kind: Math.random() > 0.35 ? 'heart' : 'thorn'
+  };
+}
+
+function generateFood(snake, boardSize) {
+  let x = 0;
+  let y = 0;
+  let valid = false;
+
+  while (!valid) {
+    x = Math.floor(Math.random() * boardSize);
+    y = Math.floor(Math.random() * boardSize);
+    valid = !snake.some((segment) => segment.x === x && segment.y === y);
+  }
+
+  return { x, y };
 }
 
 export default App;
