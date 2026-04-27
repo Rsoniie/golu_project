@@ -16,7 +16,7 @@ const targetSpinnerResult = 1;
 const wheelOptions = [
   { value: 1, label: 'Tulip Bracelet', icon: '🌷' },
   { value: 2, label: 'YSL Heel', icon: '👠' },
-  { value: 3, label: 'Bangle', icon: '✨' },
+  { value: 3, label: 'Tulip Bracelet', icon: '✨' },
   { value: 4, label: 'Kay Beauty', icon: '💄' },
   { value: 5, label: 'Soya Chaap', icon: '🍢' },
   { value: 6, label: 'Chatpata Food', icon: '🌶️' },
@@ -92,6 +92,7 @@ function App() {
 
   const completedCount = clearedGames.filter(Boolean).length;
   const allCleared = completedCount === games.length;
+  const hasConfirmedReward = rewardWon && spinResult === targetSpinnerResult;
 
   const floatingPetals = useMemo(
     () =>
@@ -130,7 +131,10 @@ function App() {
       if (Array.isArray(parsed.clearedGames) && parsed.clearedGames.length === games.length) {
         setClearedGames(parsed.clearedGames);
       }
-      if (parsed.rewardWon) {
+      if (typeof parsed.spinResult === 'number') {
+        setSpinResult(parsed.spinResult);
+      }
+      if (parsed.rewardWon && parsed.spinResult === targetSpinnerResult) {
         setRewardWon(true);
         setShowSpinner(true);
       }
@@ -148,9 +152,9 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify({ clearedGames, rewardWon, wheelRotation, showGiftIntro }),
+      JSON.stringify({ clearedGames, rewardWon, wheelRotation, showGiftIntro, spinResult }),
     );
-  }, [clearedGames, rewardWon, wheelRotation, showGiftIntro]);
+  }, [clearedGames, rewardWon, wheelRotation, showGiftIntro, spinResult]);
 
   const handleGameWin = (gameId) => {
     setClearedGames((current) => current.map((value, index) => (index === gameId - 1 ? true : value)));
@@ -206,7 +210,13 @@ function App() {
     setSpinResult(null);
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify({ clearedGames: fresh, rewardWon: false, wheelRotation: 0, showGiftIntro: false }),
+      JSON.stringify({
+        clearedGames: fresh,
+        rewardWon: false,
+        wheelRotation: 0,
+        showGiftIntro: false,
+        spinResult: null,
+      }),
     );
   };
 
@@ -407,17 +417,17 @@ function App() {
                 <GiftIntroCard onOpenSpinner={openSpinner} />
               )}
 
-              {(showSpinner || rewardWon) && (
+              {(showSpinner || hasConfirmedReward) && (
                 <SpinnerReward
                   rotation={wheelRotation}
                   isSpinning={isSpinning}
-                  rewardWon={rewardWon}
+                  rewardWon={hasConfirmedReward}
                   spinResult={spinResult}
                   onSpin={spinWheel}
                 />
               )}
 
-              {rewardWon && (
+              {hasConfirmedReward && (
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
