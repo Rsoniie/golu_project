@@ -12,15 +12,16 @@ import {
 } from 'lucide-react';
 
 const storageKey = 'garden-of-love-games-progress';
+const targetSpinnerResult = 1;
 const wheelOptions = [
-  { label: 'Tulip Bracelet', icon: '🌷' },
-  { label: 'YSL Heel', icon: '👠' },
-  { label: 'Bangle', icon: '✨' },
-  { label: 'Kay Beauty', icon: '💄' },
-  { label: 'Soya Chaap', icon: '🍢' },
-  { label: 'Chatpata Food', icon: '🌶️' },
-  { label: 'Dyson', icon: '💨' },
-  { label: 'Mystery Date', icon: '🍫' }
+  { value: 1, label: 'Tulip Bracelet', icon: '🌷' },
+  { value: 2, label: 'YSL Heel', icon: '👠' },
+  { value: 3, label: 'Bangle', icon: '✨' },
+  { value: 4, label: 'Kay Beauty', icon: '💄' },
+  { value: 5, label: 'Soya Chaap', icon: '🍢' },
+  { value: 6, label: 'Chatpata Food', icon: '🌶️' },
+  { value: 7, label: 'Dyson', icon: '💨' },
+  { value: 8, label: 'Mystery Date', icon: '🍫' }
 ];
 
 const games = [
@@ -87,6 +88,7 @@ function App() {
   const [wheelRotation, setWheelRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rewardWon, setRewardWon] = useState(false);
+  const [spinResult, setSpinResult] = useState(null);
 
   const completedCount = clearedGames.filter(Boolean).length;
   const allCleared = completedCount === games.length;
@@ -174,16 +176,18 @@ function App() {
       return;
     }
 
-    const tulipIndex = 0;
+    const tulipIndex = wheelOptions.findIndex((option) => option.value === targetSpinnerResult);
     const sliceAngle = 360 / wheelOptions.length;
     const centerAngle = tulipIndex * sliceAngle + sliceAngle / 2;
     const targetRotation = wheelRotation + 360 * 6 + (270 - centerAngle - (wheelRotation % 360));
 
     setIsSpinning(true);
+    setSpinResult(null);
     setWheelRotation(targetRotation);
 
     window.setTimeout(() => {
       setIsSpinning(false);
+      setSpinResult(targetSpinnerResult);
       setRewardWon(true);
       launchRewardCelebration();
     }, 5200);
@@ -199,6 +203,7 @@ function App() {
     setWheelRotation(0);
     setIsSpinning(false);
     setRewardWon(false);
+    setSpinResult(null);
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({ clearedGames: fresh, rewardWon: false, wheelRotation: 0, showGiftIntro: false }),
@@ -407,6 +412,7 @@ function App() {
                   rotation={wheelRotation}
                   isSpinning={isSpinning}
                   rewardWon={rewardWon}
+                  spinResult={spinResult}
                   onSpin={spinWheel}
                 />
               )}
@@ -428,6 +434,9 @@ function App() {
                     Happy Birthday, my love! You spun your way into my heart forever.
                     Here&apos;s your Tulip Bracelet — just like the first flower I ever gave
                     you. 🌷💍
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-[#8c5566]">
+                    From Vvk Soni
                   </p>
                   <button
                     type="button"
@@ -1019,7 +1028,7 @@ function GiftIntroCard({ onOpenSpinner }) {
   );
 }
 
-function SpinnerReward({ rotation, isSpinning, rewardWon, onSpin }) {
+function SpinnerReward({ rotation, isSpinning, rewardWon, spinResult, onSpin }) {
   const sliceAngle = 360 / wheelOptions.length;
   const colors = ['#ffb7c5', '#ffd166', '#fadadd', '#b76e79', '#ff8fab', '#fff0f5', '#ffcad4', '#ffc2d1'];
   const gradient = wheelOptions
@@ -1054,6 +1063,7 @@ function SpinnerReward({ rotation, isSpinning, rewardWon, onSpin }) {
                 }}
               >
                 <div>{option.icon}</div>
+                <div className="mt-1 text-[10px] leading-none">#{option.value}</div>
                 <div className="mt-1 leading-3">{option.label}</div>
               </div>
             );
@@ -1074,7 +1084,9 @@ function SpinnerReward({ rotation, isSpinning, rewardWon, onSpin }) {
       </button>
 
       {rewardWon && (
-        <p className="mt-4 text-sm text-[#8c5566]">🎉 You won: Tulip Bracelet 🌷 🎉</p>
+        <p className="mt-4 text-sm text-[#8c5566]">
+          🎉 Result: {spinResult} - You won: Tulip Bracelet 🌷 🎉
+        </p>
       )}
     </motion.div>
   );
